@@ -49,18 +49,7 @@ function watchExtensionEnabled() {
 }
 
 // ==================== 本次会话统计 ====================
-const STAT_CATEGORIES = [
-  { key: 'title', label: '视频标题命中' },
-  { key: 'up', label: 'UP 主昵称命中' },
-  { key: 'section', label: '分区命中' },
-  { key: 'duration', label: '时长过短' },
-  { key: 'stat', label: '统计数据不达标' },
-  { key: 'ad', label: '广告' },
-  { key: 'live', label: '直播 / 活动' },
-  { key: 'comment', label: '评论内容命中' },
-  { key: 'commenter', label: '评论者昵称命中' },
-  { key: 'mention', label: '评论中 @ 他人' },
-];
+const STAT_CATEGORIES = Core.BLOCK_CATEGORIES;
 
 const sessionStats = {
   startedAt: Date.now(),
@@ -202,7 +191,7 @@ function blockCardElement(element, reason, category) {
   recordBlock(target, category);
   target.dataset.bilipurified = 'true';
   target.classList.remove('bp-hidden', 'bp-placeholder');
-  if (currentSettings.blockMode === 'placeholder') {
+  if (Core.wantsPlaceholder(currentSettings, category)) {
     target.dataset.bpReason = '已屏蔽：' + (reason || '命中规则') + ' 点击查看';
     target.classList.add('bp-placeholder');
   } else {
@@ -361,6 +350,9 @@ function settingsPayload(settings) {
     durationSec: settings.durationSec,
     statExpr: settings.statExpr,
     blockMode: settings.blockMode,
+    placeholderScopes: settings.placeholderScopes,
+    followUpPass: settings.followUpPass,
+    blockPromo: settings.blockPromo,
     cleanAd: settings.cleanAd,
     cleanLive: settings.cleanLive,
     preloadEnabled: settings.preloadEnabled,
@@ -422,8 +414,44 @@ const cardSelectors = [
   },
 ];
 
+// ==================== 推广视频 ====================
+// 推广角标渲染在 UP 主昵称行，三种形态共用 color: var(--Or5) 与 background: var(--Or1)：
+//   首页普通卡   .bili-video-card__info--icon-text   ← rcmd_reason.content
+//   首页广告卡   .bili-video-card__info--rcmd-text   ← rcmd_reason_style.text
+//   搜索页广告卡 .bili-video-card__info--rcmd-label  ← rcmd_reason_style.text
+// 对应接口的 rcmd_reason.reason_type：0 无、1 已关注、3 角标。
+// 文案随播放、点赞、收藏等指标变化，按类名判定即可覆盖全部取值。
+const PROMO_BADGE_SELECTOR =
+  '[class*="bili-video-card__info--rcmd"], .bili-video-card__info--icon-text';
+// 非广告卡的同一位置也用来显示关注状态，不属于推广
+const FOLLOWED_LABEL = /^(已关注|following)$/i;
+
+function hasPromoBadge(cardElement) {
+  if (!cardElement) return false;
+  const badges = cardElement.querySelectorAll(PROMO_BADGE_SELECTOR);
+  for (const badge of badges) {
+    const text = (badge.textContent || '').trim();
+    if (!text) continue;
+    if (badge.classList.contains('bili-video-card__info--icon-text')
+      && FOLLOWED_LABEL.test(text)) continue;
+    return true;
+  }
+  return false;
+}
+
+// 同一个位置也承载关注状态，显示「已关注」时不参与屏蔽
+function hasFollowedBadge(cardElement) {
+  if (!cardElement) return false;
+  const badges = cardElement.querySelectorAll(PROMO_BADGE_SELECTOR);
+  for (const badge of badges) {
+    if (FOLLOWED_LABEL.test((badge.textContent || '').trim())) return true;
+  }
+  return false;
+}
+
 async function hideVideos(settings) {
   const rulesActive = Core.hasActiveRules(settings);
+  const blockPromo = !!settings.blockPromo;
   const metaTasks = [];
   const needSection = rulesActive && settings.sectionCompiled.length > 0;
   const needStat = rulesActive && !!(settings.statCompiled && settings.statCompiled.ast);
@@ -438,25 +466,36 @@ async function hideVideos(settings) {
       const upElement = cardElement.querySelector(up);
       attachUpBanButton(upElement);
 
-      if (!rulesActive) continue;
-
       const titleElement = cardElement.querySelector(title);
       const bvidElement = cardElement.querySelector(bvid);
       const durationElement = cardElement.querySelector(duration);
 
-      if (!titleElement || !bvidElement) continue;
-
-      const titleText = titleElement.textContent || '';
+      const titleText = titleElement ? (titleElement.textContent || '') : '';
       const upName = upElement ? (upElement.textContent || '') : '';
 
       // 白名单优先级最高：命中即保留，不再参与任何屏蔽规则
-      const allowHit =
+      const allowHit = rulesActive && (
         Core.matchAny(titleText, settings.titleAllowRules) ||
-        (upName && Core.matchAny(upName, settings.upAllowRules));
+        (upName && Core.matchAny(upName, settings.upAllowRules)));
       if (allowHit) {
         revealCardElement(cardElement);
         continue;
       }
+
+      // 放行已关注的 UP 主：昵称行显示「已关注」时整卡保留
+      if (settings.followUpPass && hasFollowedBadge(cardElement)) {
+        revealCardElement(cardElement);
+        continue;
+      }
+
+      if (blockPromo && hasPromoBadge(cardElement)) {
+        blockCardElement(cardElement, '推广标记', 'promo');
+        continue;
+      }
+
+      if (!rulesActive) continue;
+
+      if (!titleElement || !bvidElement) continue;
 
       const titleHit = Core.matchAny(titleText, settings.titleBlockRules);
       if (titleHit) {
@@ -700,7 +739,7 @@ function blockCommentHost(host, verdict) {
   host.dataset.bilipurified = 'true';
   host.style.setProperty('display', 'none', 'important');
 
-  if (currentSettings.blockMode !== 'placeholder') return;
+  if (!Core.wantsPlaceholder(currentSettings, verdict.category)) return;
 
   const placeholder = document.createElement('button');
   placeholder.type = 'button';
@@ -1153,7 +1192,8 @@ function startBlocking() {
           const relevant = [
             'titleBlock', 'titleAllow', 'upBlock', 'upAllow',
             'commentTextBlock', 'commentTextAllow', 'commentUserBlock', 'commentUserAllow', 'blockMention',
-            'sectionRules', 'durationSec', 'statExpr', 'blockMode', 'cleanAd', 'cleanLive', 'version',
+            'sectionRules', 'durationSec', 'statExpr', 'blockMode', 'placeholderScopes', 'followUpPass', 'blockPromo',
+            'cleanAd', 'cleanLive', 'version',
             'preloadEnabled', 'preloadScreens',
           ];
           if (Object.keys(changes).some((k) => relevant.includes(k))) {

@@ -331,12 +331,12 @@
       var rule = rules[i];
       if (rule.regex) {
         try {
-          out.push({ re: new RegExp(rule.pattern, 'i'), label: rule.pattern });
+          out.push({ re: new RegExp(rule.pattern), label: rule.pattern });
         } catch (error) {
           console.warn('[BiliPurifier] 正则无效，已跳过：' + rule.pattern + '（' + error.message + '）');
         }
       } else {
-        out.push({ text: rule.pattern.toLowerCase(), label: rule.pattern });
+        out.push({ text: rule.pattern, label: rule.pattern });
       }
     }
     return out;
@@ -370,20 +370,55 @@
   }
 
   // 返回命中的规则原文，未命中返回 null
+  // 匹配区分英文大小写：非正则规则按原样做包含匹配
   function matchAny(text, compiledRules) {
     if (!text || !compiledRules || !compiledRules.length) return null;
     var source = String(text);
-    var lower = source.toLowerCase();
     for (var i = 0; i < compiledRules.length; i++) {
       var rule = compiledRules[i];
       if (rule.re) {
         rule.re.lastIndex = 0;
         if (rule.re.test(source)) return rule.label;
-      } else if (lower.indexOf(rule.text) >= 0) {
+      } else if (source.indexOf(rule.text) >= 0) {
         return rule.label;
       }
     }
     return null;
+  }
+
+  // ==================== 屏蔽类型 ====================
+  // 占位显示范围按这里列出的类型逐项设置，列表顺序即设置页的排列顺序。
+
+  var BLOCK_CATEGORIES = [
+    { key: 'title', label: '视频标题命中' },
+    { key: 'up', label: 'UP 主昵称命中' },
+    { key: 'section', label: '分区命中' },
+    { key: 'duration', label: '时长过短' },
+    { key: 'stat', label: '统计数据不达标' },
+    { key: 'promo', label: '推广标记' },
+    { key: 'ad', label: '广告' },
+    { key: 'live', label: '直播 / 活动' },
+    { key: 'comment', label: '评论内容命中' },
+    { key: 'commenter', label: '评论者昵称命中' },
+    { key: 'mention', label: '评论中 @ 他人' }
+  ];
+
+  function normalizeScopes(raw) {
+    var input = raw && typeof raw === 'object' ? raw : {};
+    var out = {};
+    for (var i = 0; i < BLOCK_CATEGORIES.length; i++) {
+      var key = BLOCK_CATEGORIES[i].key;
+      out[key] = input[key] !== false;
+    }
+    return out;
+  }
+
+  // 该类型命中时是否保留占位；返回 false 表示按移除处理
+  function wantsPlaceholder(settings, category) {
+    if (!settings || settings.blockMode !== 'placeholder') return false;
+    var scopes = settings.placeholderScopes;
+    if (!scopes) return true;
+    return scopes[category] !== false;
   }
 
   // ==================== 设置归一化 ====================
@@ -402,6 +437,9 @@
     durationSec: 0,
     statExpr: '',
     blockMode: 'hide',
+    placeholderScopes: normalizeScopes(null),
+    followUpPass: false,
+    blockPromo: false,
     cleanAd: false,
     cleanLive: false,
     preloadEnabled: true,
@@ -440,6 +478,9 @@
       durationSec: input.durationSec,
       statExpr: input.statExpr,
       blockMode: input.blockMode,
+      placeholderScopes: input.placeholderScopes,
+      followUpPass: input.followUpPass,
+      blockPromo: input.blockPromo,
       cleanAd: input.cleanAd,
       cleanLive: input.cleanLive,
       preloadEnabled: input.preloadEnabled,
@@ -483,6 +524,9 @@
       durationSec: Math.max(0, Math.round(Number(migrated.durationSec) || 0)),
       statExpr: String(migrated.statExpr == null ? '' : migrated.statExpr).trim(),
       blockMode: migrated.blockMode === 'placeholder' ? 'placeholder' : 'hide',
+      placeholderScopes: normalizeScopes(migrated.placeholderScopes),
+      followUpPass: !!migrated.followUpPass,
+      blockPromo: !!migrated.blockPromo,
       cleanAd: !!migrated.cleanAd,
       cleanLive: !!migrated.cleanLive,
       preloadEnabled: migrated.preloadEnabled === undefined ? true : !!migrated.preloadEnabled,
@@ -539,6 +583,8 @@
     VARIABLES: VARIABLES,
     VARIABLE_LABELS: VARIABLE_LABELS,
     DEFAULTS: DEFAULTS,
+    BLOCK_CATEGORIES: BLOCK_CATEGORIES,
+    wantsPlaceholder: wantsPlaceholder,
     normalizeEntry: normalizeEntry,
     normalizeList: normalizeList,
     compileRules: compileRules,

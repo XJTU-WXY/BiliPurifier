@@ -373,6 +373,54 @@
 
   .mode-option.is-active .mode-title { color: var(--accent-dark); }
 
+  .scope-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 18px 0 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+  }
+
+  .scope-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(158px, 1fr));
+    gap: 8px;
+  }
+
+  .scope-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fafbfc;
+    font-size: 12.5px;
+    color: var(--text-2);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+  }
+
+  .scope-item:hover { border-color: var(--border-strong); }
+
+  .scope-item input {
+    flex: none;
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: var(--accent);
+  }
+
+  .scope-item span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .scope-grid.is-off { opacity: 0.45; pointer-events: none; }
+
   .switch-row {
     display: flex;
     align-items: center;
@@ -571,6 +619,9 @@
         <div class="mode-desc">保留占位符并显示屏蔽原因，点击可恢复查看。</div>
       </label>
     </div>
+
+    <div class="scope-label">占位显示范围</div>
+    <div class="scope-grid" id="scopeGrid"></div>
   </section>
 
   <section>
@@ -620,6 +671,17 @@
         <textarea class="editor-input" wrap="off" data-field="upAllow" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
       </div>
       <div class="field-status" data-status="upAllow"></div>
+    </div>
+
+    <div class="switch-row">
+      <div class="switch-text">
+        <div class="switch-name">放行已关注的 UP 主</div>
+        <div class="switch-desc">昵称行显示「已关注」时不屏蔽</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="followUpPass">
+        <span class="slider"></span>
+      </label>
     </div>
   </section>
 
@@ -687,6 +749,17 @@
       </div>
       <label class="switch">
         <input type="checkbox" id="cleanLive">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="switch-row">
+      <div class="switch-text">
+        <div class="switch-name">屏蔽推广角标</div>
+        <div class="switch-desc">移除 UP 主昵称左侧带橙色角标的视频</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="blockPromo">
         <span class="slider"></span>
       </label>
     </div>

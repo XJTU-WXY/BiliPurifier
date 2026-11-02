@@ -313,6 +313,40 @@ function syncModeUI() {
     const input = label.querySelector('input');
     label.classList.toggle('is-active', input.checked);
   });
+  syncScopeUI();
+}
+
+// 占位显示范围只在「占位」下有意义，选「移除」时整块置灰
+function syncScopeUI() {
+  const grid = document.getElementById('scopeGrid');
+  if (!grid) return;
+  const placeholder = draft.blockMode === 'placeholder';
+  grid.classList.toggle('is-off', !placeholder);
+  grid.querySelectorAll('input[data-scope]').forEach((input) => {
+    input.checked = draft.placeholderScopes[input.dataset.scope] !== false;
+    input.disabled = !placeholder;
+  });
+}
+
+function renderScopes() {
+  const grid = document.getElementById('scopeGrid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  Core.BLOCK_CATEGORIES.forEach((category) => {
+    const item = document.createElement('label');
+    item.className = 'scope-item';
+
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.dataset.scope = category.key;
+
+    const text = document.createElement('span');
+    text.textContent = category.label;
+
+    item.appendChild(input);
+    item.appendChild(text);
+    grid.appendChild(item);
+  });
 }
 
 function syncPreloadUI() {
@@ -360,7 +394,10 @@ function buildPayload() {
     durationSec: Math.max(0, Math.round(Number(draft.durationSec) || 0)),
     statExpr: String(draft.statExpr || '').trim(),
     blockMode: draft.blockMode,
+    placeholderScopes: draft.placeholderScopes,
     blockMention: !!draft.blockMention,
+    followUpPass: !!draft.followUpPass,
+    blockPromo: !!draft.blockPromo,
     cleanAd: !!draft.cleanAd,
     cleanLive: !!draft.cleanLive,
     preloadEnabled: !!draft.preloadEnabled,
@@ -467,6 +504,20 @@ function bindEvents() {
     draft.cleanLive = event.target.checked;
   });
 
+  document.getElementById('blockPromo').addEventListener('change', (event) => {
+    draft.blockPromo = event.target.checked;
+  });
+
+  document.getElementById('followUpPass').addEventListener('change', (event) => {
+    draft.followUpPass = event.target.checked;
+  });
+
+  document.getElementById('scopeGrid').addEventListener('change', (event) => {
+    const input = event.target;
+    if (!input.dataset || !input.dataset.scope) return;
+    draft.placeholderScopes[input.dataset.scope] = input.checked;
+  });
+
   document.getElementById('preloadEnabled').addEventListener('change', (event) => {
     draft.preloadEnabled = event.target.checked;
     syncPreloadUI();
@@ -533,7 +584,7 @@ const CONFIG_KEYS = [
   'titleBlock', 'titleAllow', 'upBlock', 'upAllow',
   'commentTextBlock', 'commentTextAllow', 'commentUserBlock', 'commentUserAllow',
   'blockMention', 'sectionRules', 'durationSec', 'statExpr',
-  'blockMode', 'cleanAd', 'cleanLive',
+  'blockMode', 'placeholderScopes', 'followUpPass', 'blockPromo', 'cleanAd', 'cleanLive',
   'preloadEnabled', 'preloadScreens',
 ];
 
@@ -612,6 +663,8 @@ function renderForm() {
   document.getElementById('durationSec').value = draft.durationSec || 0;
   document.getElementById('statExpr').value = draft.statExpr || '';
   document.getElementById('blockMention').checked = !!draft.blockMention;
+  document.getElementById('blockPromo').checked = !!draft.blockPromo;
+  document.getElementById('followUpPass').checked = !!draft.followUpPass;
   document.getElementById('cleanAd').checked = !!draft.cleanAd;
   document.getElementById('cleanLive').checked = !!draft.cleanLive;
   document.getElementById('modeHide').checked = draft.blockMode !== 'placeholder';
@@ -629,7 +682,10 @@ function applySettingsToDraft(settings) {
   draft.durationSec = settings.durationSec;
   draft.statExpr = settings.statExpr;
   draft.blockMode = settings.blockMode;
+  draft.placeholderScopes = Object.assign({}, settings.placeholderScopes || Core.DEFAULTS.placeholderScopes);
   draft.blockMention = settings.blockMention;
+  draft.followUpPass = settings.followUpPass;
+  draft.blockPromo = settings.blockPromo;
   draft.cleanAd = settings.cleanAd;
   draft.cleanLive = settings.cleanLive;
   draft.preloadEnabled = settings.preloadEnabled;
@@ -650,6 +706,7 @@ async function init() {
   applySettingsToDraft(Core.normalizeSettings(raw));
 
   renderChips();
+  renderScopes();
   renderForm();
   bindEvents();
   refreshSyncStatus();
