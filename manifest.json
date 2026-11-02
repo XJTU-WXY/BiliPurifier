@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "BiliPurifier-净化B站视频推荐流与评论",
+  "version": "1.0.0",
+  "description": "按标题、UP 主、分区与统计数据屏蔽B站视频推荐流，并按内容与评论者净化播放页评论，支持关键词和正则。",
+  "permissions": [
+    "storage"
+  ],
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "bilipurifier",
+      "strict_min_version": "58.0"
+    }
+  },
+  "host_permissions": [
+    "https://*.bilibili.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "web_accessible_resources": [{
+    "resources": ["tidmap.json"],
+    "matches": ["https://*.bilibili.com/*"]
+  }],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.bilibili.com/*"
+      ],
+      "css": [
+        "styles.css"
+      ],
+      "js": [
+        "core.js",
+        "sync-manager.js",
+        "content.js"
+      ]
+    }
+  ],
+  "options_ui": {
+    "page": "options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_title": "BiliPurifier",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon16.png",
+      "48": "icon48.png",
+      "128": "icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  }
+}

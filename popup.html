@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BiliPurifier</title>
+<style>
+  * { box-sizing: border-box; }
+
+  body {
+    width: 320px;
+    margin: 0;
+    padding: 14px 16px 16px;
+    background: #fff;
+    color: #1f2329;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, sans-serif;
+    font-size: 13px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .head h1 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+  }
+
+  .switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: none; }
+  .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+  .slider {
+    position: absolute;
+    inset: 0;
+    background: #d8dbe1;
+    border-radius: 22px;
+    cursor: pointer;
+    transition: background-color 0.18s ease;
+  }
+
+  .slider::before {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 2px;
+    top: 2px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    transition: transform 0.18s ease;
+  }
+
+  .switch input:checked + .slider { background: #fb7299; }
+  .switch input:checked + .slider::before { transform: translateX(18px); }
+
+  .body { transition: opacity 0.18s ease; }
+  .body.is-off { opacity: 0.42; pointer-events: none; }
+
+  .mode-group {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    margin-bottom: 16px;
+    border-radius: 9px;
+    background: #f2f3f5;
+  }
+
+  .mode-option { flex: 1; position: relative; }
+  .mode-option input { position: absolute; opacity: 0; pointer-events: none; }
+
+  .mode-option span {
+    display: block;
+    padding: 5px 0;
+    border-radius: 7px;
+    text-align: center;
+    font-size: 12.5px;
+    color: #5c6370;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .mode-option input:checked + span {
+    background: #fff;
+    color: #d45a7e;
+    font-weight: 500;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .group-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+
+  .group-title {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: #9299a4;
+    letter-spacing: 0.3px;
+  }
+
+  .group-total {
+    font-size: 11.5px;
+    color: #9299a4;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stats {
+    border: 1px solid #e6e8ec;
+    border-radius: 10px;
+    background: #fafbfc;
+    padding: 2px 12px;
+    margin-bottom: 14px;
+    max-height: 404px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .stat-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 0;
+    font-size: 12.5px;
+    color: #5c6370;
+  }
+
+  .stat-row + .stat-row {
+    border-top: 1px solid #eef0f3;
+  }
+
+  .stat-icon {
+    flex: none;
+    display: inline-flex;
+    color: #9299a4;
+  }
+
+  .stat-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .stat-count {
+    flex: none;
+    color: #1f2329;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stat-row.is-zero { color: #b3b8c1; }
+  .stat-row.is-zero .stat-icon { color: #ccd0d6; }
+  .stat-row.is-zero .stat-count { color: #ccd0d6; font-weight: 500; }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 10px 0;
+    border: none;
+    border-radius: 9px;
+    background: #fb7299;
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  .btn:hover { background: #e85f87; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>BiliPurifier</h1>
+    <label class="switch" title="屏蔽开关">
+      <input type="checkbox" id="enabled" checked>
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="body" id="body">
+    <div class="mode-group" id="modeGroup">
+      <label class="mode-option">
+        <input type="radio" name="blockMode" value="hide">
+        <span>移除</span>
+      </label>
+      <label class="mode-option">
+        <input type="radio" name="blockMode" value="placeholder">
+        <span>占位</span>
+      </label>
+    </div>
+
+    <div class="group-head">
+      <p class="group-title">本次会话屏蔽</p>
+      <span class="group-total" id="total">0 条</span>
+    </div>
+
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <button class="btn" id="openOptions">编辑规则</button>
+
+  <script src="core.js"></script>
+  <script src="sync-manager.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

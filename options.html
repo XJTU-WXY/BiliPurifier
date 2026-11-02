@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BiliPurifier 设置</title>
+<style>
+  :root {
+    --accent: #fb7299;
+    --accent-dark: #e85f87;
+    --accent-soft: #fdeef3;
+    --bg: #f6f7f9;
+    --card: #ffffff;
+    --border: #e6e8ec;
+    --border-strong: #d6d9df;
+    --text: #1f2329;
+    --text-2: #5c6370;
+    --text-3: #969ba5;
+    --radius: 12px;
+
+    --tok-delim: #b6bcc4;
+    --tok-esc: #a9660a;
+    --tok-class: #0b7285;
+    --tok-group: #7048a8;
+    --tok-quant: #c2255c;
+    --tok-anchor: #2b6cb0;
+    --tok-alt: #c2255c;
+    --tok-dot: #c2255c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 0 0 96px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: saturate(180%) blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .topbar-inner {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 12px 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .brand img { width: 26px; height: 26px; border-radius: 7px; display: block; }
+
+  .brand h1 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+  }
+
+  .brand span {
+    font-size: 12px;
+    color: var(--text-3);
+    padding-left: 2px;
+  }
+
+  main {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+  }
+
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+
+  h2 {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.1px;
+  }
+
+  .section-desc {
+    margin: 0 0 18px;
+    font-size: 12.5px;
+    color: var(--text-3);
+    line-height: 1.75;
+  }
+
+  .section-desc b { color: var(--text-2); font-weight: 500; }
+
+  .field { margin-top: 16px; }
+
+  .field:first-of-type { margin-top: 0; }
+
+  .field-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-2);
+  }
+
+  .field-label .tally {
+    font-weight: 400;
+    font-size: 11.5px;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ==================== 规则编辑器 ==================== */
+  .editor {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .editor:focus-within {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(251, 114, 153, 0.14);
+  }
+
+  .editor-gutter,
+  .editor-hl {
+    margin: 0;
+    padding: 10px 12px;
+    min-height: 112px;
+    max-height: 288px;
+    border: 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.75;
+    letter-spacing: 0;
+    white-space: pre;
+    overflow: hidden;
+    tab-size: 2;
+  }
+
+  .editor-gutter {
+    grid-row: 1;
+    grid-column: 1;
+    min-width: calc(2ch + 19px);
+    padding: 10px 8px 10px 10px;
+    border-right: 1px solid var(--border);
+    background: #fafbfc;
+    color: #b3b8c1;
+    text-align: right;
+    user-select: none;
+  }
+
+  .editor-hl {
+    grid-row: 1;
+    grid-column: 2;
+    display: block;
+    color: var(--text);
+    pointer-events: none;
+  }
+
+  .editor-input {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: var(--gutter-w, 40px);
+    margin: 0;
+    padding: 10px 12px;
+    border: 0;
+    resize: none;
+    outline: none;
+    background: transparent;
+    color: transparent;
+    caret-color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.75;
+    letter-spacing: 0;
+    white-space: pre;
+    overflow: auto;
+    tab-size: 2;
+  }
+
+  .editor-input::-webkit-scrollbar { width: 0; height: 6px; }
+  .editor-input::-webkit-scrollbar-track { background: transparent; }
+  .editor-input::-webkit-scrollbar-thumb {
+    background: #d2d6dd;
+    border-radius: 3px;
+  }
+  .editor-input::-webkit-scrollbar-thumb:hover { background: #b3b8c1; }
+  .editor-input::-webkit-scrollbar-corner { background: transparent; }
+
+  .editor-input::selection { background: rgba(251, 114, 153, 0.24); }
+
+  /* 中文输入法组合期间直接显示原文，避免组合串被透明色吃掉 */
+  .editor-input.is-composing { color: var(--text); }
+  .editor.is-composing .editor-hl { visibility: hidden; }
+
+  .tok-plain { color: var(--text); }
+  .tok-delim { color: var(--tok-delim); }
+  .tok-esc { color: var(--tok-esc); }
+  .tok-class { color: var(--tok-class); }
+  .tok-group { color: var(--tok-group); }
+  .tok-quant { color: var(--tok-quant); }
+  .tok-anchor { color: var(--tok-anchor); }
+  .tok-alt { color: var(--tok-alt); }
+  .tok-dot { color: var(--tok-dot); }
+
+  .tok-invalid {
+    background: rgba(217, 83, 79, 0.09);
+    border-radius: 3px;
+    box-shadow: 0 0 0 1px rgba(217, 83, 79, 0.28);
+  }
+
+  .field-status {
+    margin-top: 6px;
+    font-size: 12px;
+    color: #d9534f;
+    min-height: 0;
+    line-height: 1.6;
+  }
+
+  .field-status:empty { display: none; }
+
+  .syntax-legend {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 16px;
+    margin: 0 0 16px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    background: #fafbfc;
+    border: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-3);
+  }
+
+  .syntax-legend code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 12px;
+    padding: 1px 4px;
+    border-radius: 4px;
+    background: #fff;
+    border: 1px solid var(--border);
+  }
+
+  .unit-field {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--text-3);
+  }
+
+  .unit-field input { width: 84px; text-align: right; }
+
+  .unit-field input:disabled {
+    color: var(--text-3);
+    background: #fafbfc;
+    cursor: not-allowed;
+  }
+
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  input[type="text"]:focus, input[type="number"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(251, 114, 153, 0.14);
+  }
+
+  .mode-group { display: flex; gap: 10px; }
+
+  .mode-option {
+    flex: 1;
+    position: relative;
+    display: block;
+    padding: 14px 16px;
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .mode-option:hover { border-color: var(--accent); }
+
+  .mode-option input { position: absolute; opacity: 0; pointer-events: none; }
+
+  .mode-option .mode-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .mode-option .mode-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    background: #fff;
+    transition: all 0.15s ease;
+  }
+
+  .mode-option .mode-desc {
+    margin: 6px 0 0 22px;
+    font-size: 12.5px;
+    color: var(--text-3);
+    line-height: 1.6;
+  }
+
+  .mode-option.is-active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .mode-option.is-active .mode-dot {
+    border-color: var(--accent);
+    background: var(--accent);
+    box-shadow: inset 0 0 0 3px #fff;
+  }
+
+  .mode-option.is-active .mode-title { color: var(--accent-dark); }
+
+  .switch-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .switch-row:first-of-type { border-top: none; padding-top: 0; }
+
+  .switch-text { flex: 1; min-width: 0; }
+
+  .switch-text .switch-name { font-size: 13.5px; font-weight: 500; }
+
+  .switch-text .switch-desc { font-size: 12.5px; color: var(--text-3); margin-top: 2px; }
+
+  .switch { position: relative; display: inline-block; width: 40px; height: 22px; flex: none; }
+  .switch input { position: absolute; opacity: 0; width: 0; height: 0; }
+
+  .slider {
+    position: absolute;
+    inset: 0;
+    background: #d8dbe1;
+    border-radius: 22px;
+    cursor: pointer;
+    transition: background-color 0.18s ease;
+  }
+
+  .slider::before {
+    content: "";
+    position: absolute;
+    width: 18px;
+    height: 18px;
+    left: 2px;
+    top: 2px;
+    background: #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
+    transition: transform 0.18s ease;
+  }
+
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(18px); }
+
+  textarea.plain {
+    width: 100%;
+    min-height: 74px;
+    resize: vertical;
+    padding: 9px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+
+  textarea.plain:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(251, 114, 153, 0.14);
+  }
+
+  .expr-status {
+    margin-top: 8px;
+    font-size: 12.5px;
+    min-height: 20px;
+  }
+
+  .expr-status.ok { color: #218a54; }
+  .expr-status.err { color: #d9534f; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+
+  .chip {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: #fafbfc;
+    color: var(--text-2);
+    font-size: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .chip:hover { border-color: var(--accent); color: var(--accent-dark); background: var(--accent-soft); }
+
+  .hint-block {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #fafbfc;
+    border: 1px solid var(--border);
+    font-size: 12.5px;
+    color: var(--text-3);
+    line-height: 1.7;
+  }
+
+  .hint-block b { color: var(--text-2); font-weight: 500; }
+
+  .hint-block code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    color: var(--text-2);
+    padding: 0 3px;
+  }
+
+  .stat-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    font-size: 12.5px;
+    color: var(--text-3);
+  }
+
+  .stat-inline b { color: var(--text-2); font-weight: 500; }
+
+  .btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text);
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .btn:hover { border-color: var(--accent); color: var(--accent-dark); }
+
+  .btn-primary {
+    padding: 9px 22px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+
+  .btn-primary:hover { background: var(--accent-dark); }
+
+  .btn-row { display: flex; gap: 8px; margin-top: 14px; }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 28px;
+    transform: translate(-50%, 16px);
+    padding: 10px 20px;
+    border-radius: 999px;
+    background: #1f2329;
+    color: #fff;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.24s ease;
+    z-index: 50;
+  }
+
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <img src="icon48.png" alt="">
+      <h1>BiliPurifier</h1>
+    </div>
+    <button class="btn-primary" id="save">保存设置</button>
+  </div>
+</div>
+
+<main>
+
+  <section>
+    <div class="section-head"><h2>屏蔽方式</h2></div>
+
+    <div class="mode-group">
+      <label class="mode-option">
+        <input type="radio" name="blockMode" value="hide" id="modeHide">
+        <div class="mode-title"><span class="mode-dot"></span>移除</div>
+        <div class="mode-desc">被屏蔽的内容从列表中移除，后续内容自动补位。</div>
+      </label>
+      <label class="mode-option">
+        <input type="radio" name="blockMode" value="placeholder" id="modePlaceholder">
+        <div class="mode-title"><span class="mode-dot"></span>占位</div>
+        <div class="mode-desc">保留占位符并显示屏蔽原因，点击可恢复查看。</div>
+      </label>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>按视频标题屏蔽</h2></div>
+    <p class="section-desc">每行一条规则，正则规则用 /.../ 包裹；白名单规则命中直接保留，优先级高于黑名单屏蔽</p>
+
+    <div class="field">
+      <div class="field-label">黑名单 <span class="tally" data-tally="titleBlock"></span></div>
+      <div class="editor">
+        <pre class="editor-gutter" data-gutter="titleBlock" aria-hidden="true">1</pre>
+        <pre class="editor-hl" data-hl="titleBlock" aria-hidden="true"></pre>
+        <textarea class="editor-input" wrap="off" data-field="titleBlock" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      </div>
+      <div class="field-status" data-status="titleBlock"></div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">白名单 <span class="tally" data-tally="titleAllow"></span></div>
+      <div class="editor">
+        <pre class="editor-gutter" data-gutter="titleAllow" aria-hidden="true">1</pre>
+        <pre class="editor-hl" data-hl="titleAllow" aria-hidden="true"></pre>
+        <textarea class="editor-input" wrap="off" data-field="titleAllow" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      </div>
+      <div class="field-status" data-status="titleAllow"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>按 UP 主昵称屏蔽</h2></div>
+    <p class="section-desc">每行一条规则，正则规则用 /.../ 包裹；白名单规则命中直接保留，优先级高于黑名单屏蔽</p>
+
+    <div class="field">
+      <div class="field-label">黑名单 <span class="tally" data-tally="upBlock"></span></div>
+      <div class="editor">
+        <pre class="editor-gutter" data-gutter="upBlock" aria-hidden="true">1</pre>
+        <pre class="editor-hl" data-hl="upBlock" aria-hidden="true"></pre>
+        <textarea class="editor-input" wrap="off" data-field="upBlock" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      </div>
+      <div class="field-status" data-status="upBlock"></div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">白名单 <span class="tally" data-tally="upAllow"></span></div>
+      <div class="editor">
+        <pre class="editor-gutter" data-gutter="upAllow" aria-hidden="true">1</pre>
+        <pre class="editor-hl" data-hl="upAllow" aria-hidden="true"></pre>
+        <textarea class="editor-input" wrap="off" data-field="upAllow" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      </div>
+      <div class="field-status" data-status="upAllow"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>按分区屏蔽</h2></div>
+    <p class="section-desc">每行一条规则，正则规则用 /.../ 包裹</p>
+    <div class="field">
+      <div class="field-label">黑名单 <span class="tally" data-tally="sectionRules"></span></div>
+      <div class="editor">
+        <pre class="editor-gutter" data-gutter="sectionRules" aria-hidden="true">1</pre>
+        <pre class="editor-hl" data-hl="sectionRules" aria-hidden="true"></pre>
+        <textarea class="editor-input" wrap="off" data-field="sectionRules" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      </div>
+      <div class="field-status" data-status="sectionRules"></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>按统计数据屏蔽</h2></div>
+    <p class="section-desc">支持 <b>+ - * / %</b>、比较运算符 <b>&gt; &gt;= &lt; &lt;= == !=</b> 与 <b>and or not</b> 及括号，可写任意比例组合；变量也可以用中文书写</p>
+
+    <textarea class="plain" id="statExpr" spellcheck="false" style="min-height:64px"></textarea>
+    
+    <div class="expr-status" id="exprStatus"></div>
+    <div class="chips" id="varChips"></div>
+
+    <div class="field-label" style="margin-top:18px">常用条件</div>
+    <div class="chips" id="presetChips"></div>
+
+    <div class="hint-block">
+      <code>play</code>：播放量，<code>like</code>：点赞量，<code>danmaku</code>：弹幕量，<code>reply</code>：回复量，<code>coin</code>：硬币量，<code>favorite</code>：收藏量
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>按时长和推广类型屏蔽</h2></div>
+    <p class="section-desc">屏蔽过短的视频和非视频的推广内容</p>
+
+    <div class="switch-row">
+      <div class="switch-text">
+        <div class="switch-name">最短时长</div>
+        <div class="switch-desc">单位为秒，填 0 表示不限制</div>
+      </div>
+      <div class="unit-field">
+        <input type="number" id="durationSec" min="0" step="1">
+        <span>秒</span>
+      </div>
+    </div>
+
+    <div class="switch-row">
+      <div class="switch-text">
+        <div class="switch-name">屏蔽广告</div>
+        <div class="switch-desc">移除信息流里的推广卡片</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="cleanAd">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="switch-row">
+      <div class="switch-text">
+        <div class="switch-name">屏蔽直播 / 活动</div>
+        <div class="switch-desc">移除直播入口与活动推荐位</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="cleanLive">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>预加载</h2></div>
+    <p class="section-desc">在当前位置下方提前加载并提前完成筛选</p>
+
+    <div class="switch-row">
+      <div class="switch-text">
+        <div class="switch-name">启用预加载</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="preloadEnabled">
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="switch-row">
+      <div class="switch-text">
+        <div class="switch-name">预加载篇幅</div>
+      </div>
+      <div class="unit-field">
+        <input type="number" id="preloadScreens" min="0" max="12" step="1">
+        <span>屏</span>
+      </div>
+    </div>
+
+  </section>
+
+  <section>
+    <div class="section-head"><h2>评论区净化</h2></div>
+    <p class="section-desc">每行一条规则，正则规则用 /.../ 包裹；白名单命中直接保留，优先级高于黑名单屏蔽</p>
+
+    <div class="field">
+      <div class="field-label">评论内容 · 黑名单 <span class="tally" data-tally="commentTextBlock"></span></div>
+      <div class="editor">
+        <pre class="editor-gutter" data-gutter="commentTextBlock" aria-hidden="true">1</pre>
+        <pre class="editor-hl" data-hl="commentTextBlock" aria-hidden="true"></pre>
+        <textarea class="editor-input" wrap="off" data-field="commentTextBlock" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      </div>
+      <div class="field-status" data-status="commentTextBlock"></div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">评论内容 · 白名单 <span class="tally" data-tally="commentTextAllow"></span></div>
+      <div class="editor">
+        <pre class="editor-gutter" data-gutter="commentTextAllow" aria-hidden="true">1</pre>
+        <pre class="editor-hl" data-hl="commentTextAllow" aria-hidden="true"></pre>
+        <textarea class="editor-input" wrap="off" data-field="commentTextAllow" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      </div>
+      <div class="field-status" data-status="commentTextAllow"></div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">评论者昵称 · 黑名单 <span class="tally" data-tally="commentUserBlock"></span></div>
+      <div class="editor">
+        <pre class="editor-gutter" data-gutter="commentUserBlock" aria-hidden="true">1</pre>
+        <pre class="editor-hl" data-hl="commentUserBlock" aria-hidden="true"></pre>
+        <textarea class="editor-input" wrap="off" data-field="commentUserBlock" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      </div>
+      <div class="field-status" data-status="commentUserBlock"></div>
+    </div>
+
+    <div class="field">
+      <div class="field-label">评论者昵称 · 白名单 <span class="tally" data-tally="commentUserAllow"></span></div>
+      <div class="editor">
+        <pre class="editor-gutter" data-gutter="commentUserAllow" aria-hidden="true">1</pre>
+        <pre class="editor-hl" data-hl="commentUserAllow" aria-hidden="true"></pre>
+        <textarea class="editor-input" wrap="off" data-field="commentUserAllow" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+      </div>
+      <div class="field-status" data-status="commentUserAllow"></div>
+    </div>
+
+    <div class="switch-row" style="margin-top:18px">
+      <div class="switch-text">
+        <div class="switch-name">屏蔽带 @ 的评论</div>
+        <div class="switch-desc">针对那些把分享按钮当摆设的评论</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="blockMention">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </section>
+
+
+  <section>
+    <div class="section-head"><h2>云端同步</h2></div>
+
+    <div class="switch-row">
+      <div class="switch-text">
+        <div class="switch-name">启用同步</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="syncEnabled" checked>
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <div class="stat-inline" id="syncStatus" style="margin-top:12px"></div>
+
+    <div class="btn-row">
+      <button class="btn" id="manualSync" type="button">立即同步</button>
+      <button class="btn" id="clearCloud" type="button">清除云端数据</button>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>备份与恢复</h2></div>
+
+    <div class="btn-row">
+      <button class="btn" id="exportConfig" type="button">导出配置</button>
+      <button class="btn" id="importConfig" type="button">导入配置</button>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script src="core.js"></script>
+<script src="sync-manager.js"></script>
+<script src="options.js"></script>
+</body>
+</html>
