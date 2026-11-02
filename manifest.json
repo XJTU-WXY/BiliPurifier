@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "BiliPurifier-净化B站视频推荐流与评论",
   "version": "1.0.0",
-  "description": "按标题、UP 主、分区与统计数据屏蔽B站视频推荐流，并按内容与评论者净化播放页评论，支持关键词和正则。",
+  "description": "按标题、UP 主与统计数据屏蔽B站视频推荐流，并按内容与评论者净化播放页评论，支持关键词和正则。",
   "permissions": [
     "storage"
   ],
@@ -18,10 +18,6 @@
   "background": {
     "service_worker": "background.js"
   },
-  "web_accessible_resources": [{
-    "resources": ["tidmap.json"],
-    "matches": ["https://*.bilibili.com/*"]
-  }],
   "content_scripts": [
     {
       "matches": [

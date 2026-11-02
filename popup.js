@@ -9,7 +9,6 @@ const ICONS = {
   comment: '<rect x="2.7" y="3.5" width="10.6" height="7.2" rx="2"/><path d="M5.9 10.7 4.7 12.9v-2.2"/>',
   commenter: '<rect x="2.6" y="3.4" width="10.8" height="9.2" rx="2"/><circle cx="8" cy="6.9" r="1.7"/><path d="M5.5 11.4a2.9 2.9 0 0 1 5 0"/>',
   mention: '<circle cx="8" cy="8" r="2.3"/><path d="M10.3 6.2v2.5a1.4 1.4 0 0 0 2.8 0V8a5.1 5.1 0 1 0-2 4"/>',
-  section: '<rect x="3" y="3" width="4" height="4" rx="1"/><rect x="9" y="3" width="4" height="4" rx="1"/><rect x="3" y="9" width="4" height="4" rx="1"/><rect x="9" y="9" width="4" height="4" rx="1"/>',
   stat: '<path d="M3.6 12.4V9.4"/><path d="M8 12.4V5.2"/><path d="M12.4 12.4V7.4"/>',
   promo: '<path d="M6.6 13V6.9l2.2-3.4a1 1 0 0 1 1.7.9l-.7 2h2.3a1.2 1.2 0 0 1 1.2 1.5l-.8 3.2a1.4 1.4 0 0 1-1.4 1H6.6Z"/><rect x="2.7" y="6.9" width="2.6" height="6.1" rx="0.9"/>',
   duration: '<circle cx="8" cy="8" r="5.2"/><path d="M8 5.1V8l2.1 1.4"/>'
@@ -18,7 +17,6 @@ const ICONS = {
 const CATEGORIES = [
   { key: 'title', label: '视频标题命中' },
   { key: 'up', label: 'UP 主昵称命中' },
-  { key: 'section', label: '分区命中' },
   { key: 'duration', label: '时长过短' },
   { key: 'stat', label: '统计数据不达标' },
   { key: 'promo', label: '推广标记' },
@@ -152,7 +150,6 @@ function payloadOf(settings) {
     commentUserBlock: settings.commentUserBlock,
     commentUserAllow: settings.commentUserAllow,
     blockMention: settings.blockMention,
-    sectionRules: settings.sectionRules,
     durationSec: settings.durationSec,
     statExpr: settings.statExpr,
     blockMode: settings.blockMode,

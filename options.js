@@ -4,8 +4,7 @@ const LIST_FIELDS = [
   'titleBlock', 'titleAllow',
   'upBlock', 'upAllow',
   'commentTextBlock', 'commentTextAllow',
-  'commentUserBlock', 'commentUserAllow',
-  'sectionRules'
+  'commentUserBlock', 'commentUserAllow'
 ];
 
 const PRESETS = [
@@ -583,7 +582,7 @@ function bindEvents() {
 const CONFIG_KEYS = [
   'titleBlock', 'titleAllow', 'upBlock', 'upAllow',
   'commentTextBlock', 'commentTextAllow', 'commentUserBlock', 'commentUserAllow',
-  'blockMention', 'sectionRules', 'durationSec', 'statExpr',
+  'blockMention', 'durationSec', 'statExpr',
   'blockMode', 'placeholderScopes', 'followUpPass', 'blockPromo', 'cleanAd', 'cleanLive',
   'preloadEnabled', 'preloadScreens',
 ];

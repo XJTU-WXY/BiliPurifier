@@ -2,9 +2,6 @@
 const Core = window.BiliPurifierCore;
 
 const videoMetaCache = new Map();
-let tidMapConfig = null;
-let tidMapLoading = null;
-const warnedTids = new Set();
 
 let currentSettings = Core.normalizeSettings({});
 let settingsReady = false;
@@ -112,36 +109,6 @@ async function loadSettingsIntoCache() {
   settingsReady = true;
 }
 
-// ==================== 分区映射 ====================
-async function loadTidMapConfig() {
-  if (tidMapConfig) return;
-  if (!tidMapLoading) {
-    tidMapLoading = (async () => {
-      try {
-        const url = chrome.runtime.getURL('tidmap.json');
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        tidMapConfig = await response.json();
-      } catch (error) {
-        console.error('加载分区映射配置失败:', error);
-        tidMapConfig = { '1': '动画', '13': '番剧', '167': '国创', '3': '音乐', '4': '游戏' };
-      }
-    })();
-  }
-  await tidMapLoading;
-}
-
-async function getTidName(tid) {
-  await loadTidMapConfig();
-  const name = tidMapConfig[tid];
-  if (name) return name;
-  if (!warnedTids.has(tid)) {
-    warnedTids.add(tid);
-    console.warn('[BiliPurifier] 分区表未收录 tid=' + tid + '，该分区规则不生效');
-  }
-  return null;
-}
-
 // ==================== 视频元数据 ====================
 async function getVideoMeta(bvid) {
   if (videoMetaCache.has(bvid)) return videoMetaCache.get(bvid);
@@ -149,7 +116,7 @@ async function getVideoMeta(bvid) {
     const response = await fetch(`https://api.bilibili.com/x/web-interface/view?bvid=${bvid}`);
     const data = await response.json();
     if (data.code !== 0 || !data.data) return null;
-    const meta = { tid: data.data.tid, stat: data.data.stat || {} };
+    const meta = { stat: data.data.stat || {} };
     if (videoMetaCache.size >= 1200) {
       const dropCount = Math.ceil(videoMetaCache.size * 0.2);
       const keys = videoMetaCache.keys();
@@ -215,8 +182,20 @@ document.addEventListener('click', (event) => {
   if (!placeholder) return;
   event.preventDefault();
   event.stopPropagation();
-  placeholder.classList.remove('bp-placeholder');
-  placeholder.classList.add('bp-revealed');
+  // 同一张卡可能被多层容器标记，逐层解开，避免外层继续把内容藏住
+  const chain = [];
+  let node = placeholder;
+  while (node) {
+    if (node.classList && node.classList.contains('bp-placeholder')) chain.push(node);
+    const parent = node.parentElement;
+    node = parent ? parent.closest('.bp-placeholder') : null;
+  }
+  placeholder.querySelectorAll('.bp-placeholder').forEach((element) => chain.push(element));
+  chain.forEach((element) => {
+    element.classList.remove('bp-placeholder');
+    element.classList.add('bp-revealed');
+    element.removeAttribute('data-bp-reason');
+  });
 }, true);
 
 // ==================== 元数据校验队列（带并发限制） ====================
@@ -255,7 +234,7 @@ async function pumpMetaQueue() {
 }
 
 async function applyMetaRules(task) {
-  const { cardElement, bvid, needSection, needStat } = task;
+  const { cardElement, bvid, needStat } = task;
   const settings = currentSettings;
   if (!extensionEnabled) return;
 
@@ -265,19 +244,6 @@ async function applyMetaRules(task) {
     revealCardElement(cardElement);
     return;
   }
-
-  if (needSection) {
-    const tidName = await getTidName(meta.tid);
-    if (cardElement.isConnected && tidName) {
-      const sectionHit = Core.matchAny(tidName, settings.sectionCompiled);
-      if (sectionHit) {
-        blockCardElement(cardElement, '分区「' + tidName + '」', 'section');
-        return;
-      }
-    }
-  }
-
-  if (!cardElement.isConnected) return;
 
   if (needStat) {
     let passed = false;
@@ -346,7 +312,6 @@ function settingsPayload(settings) {
     commentUserBlock: settings.commentUserBlock,
     commentUserAllow: settings.commentUserAllow,
     blockMention: settings.blockMention,
-    sectionRules: settings.sectionRules,
     durationSec: settings.durationSec,
     statExpr: settings.statExpr,
     blockMode: settings.blockMode,
@@ -453,7 +418,6 @@ async function hideVideos(settings) {
   const rulesActive = Core.hasActiveRules(settings);
   const blockPromo = !!settings.blockPromo;
   const metaTasks = [];
-  const needSection = rulesActive && settings.sectionCompiled.length > 0;
   const needStat = rulesActive && !!(settings.statCompiled && settings.statCompiled.ast);
 
   for (const { card, title, bvid, up, duration } of cardSelectors) {
@@ -461,6 +425,9 @@ async function hideVideos(settings) {
     if (videoCards.length === 0) continue;
 
     for (const cardElement of videoCards) {
+      // 首页一张卡外面是 .feed-card、里面还套着 .bili-video-card，两个选择器会命中同一张卡；
+      // 外层处理过就跳过，否则同一张卡会叠出两层占位
+      if (cardElement.closest('[data-bilipurified]')) continue;
       cardElement.dataset.bilipurified = 'true';
 
       const upElement = cardElement.querySelector(up);
@@ -519,14 +486,13 @@ async function hideVideos(settings) {
         }
       }
 
-      // 分区与统计需要请求接口，先入队统一限流处理
-      if (needSection || needStat) {
+      // 统计数据需要请求接口，先入队统一限流处理
+      if (needStat) {
         const bvidMatch = bvidElement.href.match(/\/BV[\w]+/);
         if (bvidMatch) {
           metaTasks.push({
             cardElement,
             bvid: bvidMatch[0].replace('/', ''),
-            needSection,
             needStat,
           });
           continue;
@@ -835,6 +801,7 @@ function cleanPage() {
     for (const selector of adSelectors) {
       const elements = document.querySelectorAll(`${selector}:not([data-bilipurified])`);
       for (const element of elements) {
+        if (element.closest('[data-bilipurified]')) continue;
         const isAd =
           element.querySelector('.bili-video-card__info--creative-ad') ||
           element.querySelector('.bili-video-card__info--ad') ||
@@ -850,6 +817,7 @@ function cleanPage() {
     for (const selector of liveSelectors) {
       const elements = document.querySelectorAll(`${selector}:not([data-bilipurified])`);
       for (const element of elements) {
+        if (element.closest('[data-bilipurified]')) continue;
         blockCardElement(element, '直播或活动', 'live');
       }
     }
@@ -1192,7 +1160,7 @@ function startBlocking() {
           const relevant = [
             'titleBlock', 'titleAllow', 'upBlock', 'upAllow',
             'commentTextBlock', 'commentTextAllow', 'commentUserBlock', 'commentUserAllow', 'blockMention',
-            'sectionRules', 'durationSec', 'statExpr', 'blockMode', 'placeholderScopes', 'followUpPass', 'blockPromo',
+            'durationSec', 'statExpr', 'blockMode', 'placeholderScopes', 'followUpPass', 'blockPromo',
             'cleanAd', 'cleanLive', 'version',
             'preloadEnabled', 'preloadScreens',
           ];

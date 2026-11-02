@@ -392,7 +392,6 @@
   var BLOCK_CATEGORIES = [
     { key: 'title', label: '视频标题命中' },
     { key: 'up', label: 'UP 主昵称命中' },
-    { key: 'section', label: '分区命中' },
     { key: 'duration', label: '时长过短' },
     { key: 'stat', label: '统计数据不达标' },
     { key: 'promo', label: '推广标记' },
@@ -433,7 +432,6 @@
     commentUserBlock: [],
     commentUserAllow: [],
     blockMention: false,
-    sectionRules: [],
     durationSec: 0,
     statExpr: '',
     blockMode: 'hide',
@@ -474,7 +472,6 @@
       commentUserBlock: input.commentUserBlock,
       commentUserAllow: input.commentUserAllow,
       blockMention: input.blockMention,
-      sectionRules: input.sectionRules,
       durationSec: input.durationSec,
       statExpr: input.statExpr,
       blockMode: input.blockMode,
@@ -492,9 +489,6 @@
     }
     if (migrated.upBlock === undefined && input.upKeywords !== undefined) {
       migrated.upBlock = splitLegacy(input.upKeywords);
-    }
-    if (migrated.sectionRules === undefined && input.sectionKeywords !== undefined) {
-      migrated.sectionRules = splitLegacy(input.sectionKeywords);
     }
     if (migrated.durationSec === undefined && input.durationMin !== undefined) {
       migrated.durationSec = Math.round((Number(input.durationMin) || 0) * 60);
@@ -520,7 +514,6 @@
       commentUserBlock: normalizeList(migrated.commentUserBlock),
       commentUserAllow: normalizeList(migrated.commentUserAllow),
       blockMention: !!migrated.blockMention,
-      sectionRules: normalizeList(migrated.sectionRules),
       durationSec: Math.max(0, Math.round(Number(migrated.durationSec) || 0)),
       statExpr: String(migrated.statExpr == null ? '' : migrated.statExpr).trim(),
       blockMode: migrated.blockMode === 'placeholder' ? 'placeholder' : 'hide',
@@ -541,7 +534,6 @@
     settings.commentTextAllowRules = compileRules(settings.commentTextAllow);
     settings.commentUserBlockRules = compileRules(settings.commentUserBlock);
     settings.commentUserAllowRules = compileRules(settings.commentUserAllow);
-    settings.sectionCompiled = compileRules(settings.sectionRules);
 
     var expression = compileExpression(settings.statExpr);
     settings.statCompiled = expression.ok ? expression : null;
@@ -557,7 +549,6 @@
       settings.titleAllowRules.length ||
       settings.upBlockRules.length ||
       settings.upAllowRules.length ||
-      settings.sectionCompiled.length ||
       settings.durationSec > 0 ||
       (settings.statCompiled && settings.statCompiled.ast)
     );
